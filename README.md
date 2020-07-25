@@ -16,12 +16,12 @@ Under the assumption, you want to install below things first:
 
 Data
 
-Our data can only be shared internally. Please DO NOT include it in your PR.
+  Our data can only be shared internally. Please DO NOT include it in your PR.
 
 Pretrained bert model
 
-You will find where to download the trained model in the folder. 
+  You will find where to download the trained model in the folder. 
 
 Pull Request
 
-Only add code changes on your PR.
+  Only add code changes on your PR.
