@@ -18,10 +18,18 @@ from bert import tokenization
 from bert import modeling
 from sklearn.model_selection import train_test_split
 
+ROOTPATH = r'C:\Work\Hackathone\UIFtextaugmentation'
 ##use downloaded model, change path accordingly
-BERT_VOCAB= r'C:\Work\BugClassifer_Bert\Model\cased_L-12_H-768_A-12\vocab.txt'
-BERT_INIT_CHKPNT = r'C:\Work\BugClassifer_Bert\Model\cased_L-12_H-768_A-12\bert_model.ckpt'
-BERT_CONFIG = r'C:\Work\BugClassifer_Bert\Model\cased_L-12_H-768_A-12\bert_config.json'
+BERT_VOCAB= ROOTPATH + r'\BertPretrainedModel\cased_L-12_H-768_A-12\vocab.txt'
+BERT_INIT_CHKPNT = ROOTPATH + r'\BertPretrainedModel\cased_L-12_H-768_A-12\bert_model.ckpt'
+BERT_CONFIG = ROOTPATH + r'\BertPretrainedModel\cased_L-12_H-768_A-12\bert_config.json'
+
+#LABEL_COLUMNS needs to be changed according to the input data
+ID = 'Id'
+DATA_COLUMN = 'Text'
+LABEL_COLUMNS = ['UIF\Apps\Microsoft Edge', 'UIF\Apps\Movies and TV', 
+                 'UIF\Devices and Drivers\Display and Graphic drivers', 
+                 'UIF\Input and Language\Mouse']
 
 class InputExample(object):
     """A single training/test example for simple sequence classification."""
@@ -63,7 +71,7 @@ def create_examples(df, labels_available=True):
         if labels_available:
             labels = row[2:]
         else:
-            labels = [0,0,0,0,0,0,0,0,0]
+            labels = [0]*len(LABEL_COLUMNS)
         examples.append(
             InputExample(guid=guid, text_a=text_a, labels=labels))
     return examples
@@ -297,7 +305,7 @@ def file_based_input_fn_builder(input_file, seq_length, is_training,
         "input_ids": tf.FixedLenFeature([seq_length], tf.int64),
         "input_mask": tf.FixedLenFeature([seq_length], tf.int64),
         "segment_ids": tf.FixedLenFeature([seq_length], tf.int64),
-        "label_ids": tf.FixedLenFeature([9], tf.int64),#"label_ids": tf.FixedLenFeature([6], tf.int64),
+        "label_ids": tf.FixedLenFeature([len(LABEL_COLUMNS)], tf.int64),#"label_ids": tf.FixedLenFeature([6], tf.int64),
         "is_real_example": tf.FixedLenFeature([], tf.int64),
     }
 
@@ -568,18 +576,15 @@ if __name__ == "__main__":
     outputDir = sys.argv[4]
     
     if debug == True:
-        inputDataPath = r'C:\Work\BugClassifer_Bert\Data\test.csv'
-        modelCHeckPointPath = r'C:\Work\BugClassifer_Bert\Model\Train\Working\output\model.ckpt-171416'
-        #modelCheckPointPath = r'C:\Work\BugClassifer_Bert\Model\Train\Working\output\prev\model.ckpt-316000'
-        variablePath = r'C:\Work\BugClassifer_Bert\Model\Train\Working\variable.pckl'
-        outputPath = r'C:\Work\BugClassifer_Bert\Model\Train\Working\output'
-        outputDir = r'C:\Work\BugClassifer_Bert\Model\Train\Working\predict'
+        inputDataPath = ROOTPATH + r'\Data\test.csv'
+        #This checkpoint path should be updated based upon the latest training result
+        modelCHeckPointPath = ROOTPATH + r'\Train\Working\checkpoints\model.ckpt-232'
+        variablePath = ROOTPATH + r'\Train\Working\variable.pckl'
+        outputPath = ROOTPATH + r'\Train\Working\output'
+        outputDir = ROOTPATH + r'\Train\Working\predict'
 
     ##load inputdata
-    ID = 'Id'
-    DATA_COLUMN = 'Text'
-    LABEL_COLUMNS = ['AppFunc', 'AppInst', 'Crash', 'DeviceFunc', 'DeviceInst', 'OsFunc', 'OsPWR', 'OsPerf', 'OsUpg']
-
+    
     try:
         testdata = pd.read_csv(inputDataPath, encoding='latin1')
         columns = testdata.columns
