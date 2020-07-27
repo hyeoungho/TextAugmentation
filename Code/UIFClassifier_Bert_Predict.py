@@ -19,9 +19,9 @@ from bert import modeling
 from sklearn.model_selection import train_test_split
 
 ##use downloaded model, change path accordingly
-BERT_VOCAB= r'C:\Work\BugClassifer_Bert\Model\cased_L-12_H-768_A-12\vocab.txt'
-BERT_INIT_CHKPNT = r'C:\Work\BugClassifer_Bert\Model\cased_L-12_H-768_A-12\bert_model.ckpt'
-BERT_CONFIG = r'C:\Work\BugClassifer_Bert\Model\cased_L-12_H-768_A-12\bert_config.json'
+BERT_VOCAB= r'.\BertPretrainedModel\cased_L-12_H-768_A-12\vocab.txt'
+BERT_INIT_CHKPNT = r'.\BertPretrainedModel\cased_L-12_H-768_A-12\bert_model.ckpt'
+BERT_CONFIG = r'.\BertPretrainedModel\cased_L-12_H-768_A-12\bert_config.json'
 
 class InputExample(object):
     """A single training/test example for simple sequence classification."""
@@ -54,7 +54,7 @@ class InputFeatures(object):
         self.label_ids = label_ids,
         self.is_real_example=is_real_example
 
-def create_examples(df, labels_available=True):
+def create_examples(df, labels_available, labelcount):
     """Creates examples for the training and dev sets."""
     examples = []
     for (i, row) in enumerate(df.values):
@@ -63,7 +63,7 @@ def create_examples(df, labels_available=True):
         if labels_available:
             labels = row[2:]
         else:
-            labels = [0,0,0,0,0,0,0,0,0]
+            labels = [0]*labelcount
         examples.append(
             InputExample(guid=guid, text_a=text_a, labels=labels))
     return examples
@@ -290,14 +290,14 @@ def file_based_convert_examples_to_features(
 
 
 def file_based_input_fn_builder(input_file, seq_length, is_training,
-                                drop_remainder):
+                                drop_remainder, label_count):
     """Creates an `input_fn` closure to be passed to TPUEstimator."""
 
     name_to_features = {
         "input_ids": tf.FixedLenFeature([seq_length], tf.int64),
         "input_mask": tf.FixedLenFeature([seq_length], tf.int64),
         "segment_ids": tf.FixedLenFeature([seq_length], tf.int64),
-        "label_ids": tf.FixedLenFeature([9], tf.int64),#"label_ids": tf.FixedLenFeature([6], tf.int64),
+        "label_ids": tf.FixedLenFeature([label_count], tf.int64),#"label_ids": tf.FixedLenFeature([6], tf.int64),
         "is_real_example": tf.FixedLenFeature([], tf.int64),
     }
 
@@ -556,55 +556,62 @@ def measureaccuracy(tru, pred, thval):
     return(comp)
 
 if __name__ == "__main__":
-    debug = False
+    '''
+    Usage: python UIFClassifier_Bert_Predict.py Debug inputDataPath modelCheckPointPath variablePath outputDir
     #Expected input
-    # inputDataPath: File path to the inputData
-    # modelCheckPointPath: File path to the checkpoint
-    # variablePath: File path to the pickle dump file
-    # outputDir: Directory path to the prediction output
-    inputDataPath = sys.argv[1]
-    modelCheckPointPath = sys.argv[2]
-    variablePath = sys.argv[3]
-    outputDir = sys.argv[4]
+     Debug: True - Load default value 
+     inputDataPath: File path to the inputData
+     modelCheckPointPath: File path to the checkpoint
+     variablePath: File path to the pickle dump file
+     outputDir: Directory path to the prediction output     
+    '''
+    try:
+        debug = sys.argv[1]
+    except BaseException as e:
+        print("Could not load debug argument. In debug mode: " + str(e))
+        debug = True
     
     if debug == True:
-        inputDataPath = r'C:\Work\BugClassifer_Bert\Data\test.csv'
-        modelCHeckPointPath = r'C:\Work\BugClassifer_Bert\Model\Train\Working\output\model.ckpt-171416'
-        #modelCheckPointPath = r'C:\Work\BugClassifer_Bert\Model\Train\Working\output\prev\model.ckpt-316000'
-        variablePath = r'C:\Work\BugClassifer_Bert\Model\Train\Working\variable.pckl'
-        outputPath = r'C:\Work\BugClassifer_Bert\Model\Train\Working\output'
-        outputDir = r'C:\Work\BugClassifer_Bert\Model\Train\Working\predict'
-
+        inputDataPath = r'.\Data\UIFTestData_BertCompatible.csv'
+        #This checkpoint path should be updated based upon the latest training result
+        modelCheckPointPath = r'.\Train\Working\checkpoints\model.ckpt-232'
+        variablePath = r'.\Train\Working\variable.pckl'
+        checkPointBase, _ = os.path.split(modelCheckPointPath)
+        outputDir = r'.\Train\Working\predict'
+    else:
+        if len(sys.argv) != 6:
+            raise Exception("Usage: python UIFClassifier_Bert_Predict.py Debug inputDataPath modelCheckPointPath variablePath outputDir")
+        inputDataPath = sys.argv[2]
+        modelCheckPointPath = sys.argv[3]
+        variablePath = sys.argv[4]
+        outputDir = sys.argv[5]
+    
+    #Load Variable
+    try:
+        #LABEL_COLUMNS needs to be changed according to the input data
+        f = open(variablePath, 'rb')
+        [MAX_SEQ_LENGTH, BATCH_SIZE, LEARNING_RATE, NUM_TRAIN_EPOCHS, SAVE_CHECKPOINTS_STEPS, DO_LOWER_CASE, ID, DATA_COLUMN, LABEL_COLUMNS] = pickle.load(f)
+        f.close()
+        print("Variables are loaded")
+    except BaseException as e:
+        print("Loading variable failed:" + str(e))
+        print("*** print_tb:")
+        traceback.print_exc(file=sys.stdout)
+        exit()
+    
     ##load inputdata
-    ID = 'Id'
-    DATA_COLUMN = 'Text'
-    LABEL_COLUMNS = ['AppFunc', 'AppInst', 'Crash', 'DeviceFunc', 'DeviceInst', 'OsFunc', 'OsPWR', 'OsPerf', 'OsUpg']
-
     try:
         testdata = pd.read_csv(inputDataPath, encoding='latin1')
         columns = testdata.columns
         num_actual_predict_examples = len(testdata)
         if ID not in columns or DATA_COLUMN not in columns:
             raise Exception("InputData does not follow the required format. Id or Text missing")
-        for cat in LABEL_COLUMNS:
-            if cat not in columns:
-                raise Exception("InputData does not follow the required format: missing " + str(cat))
-        test_examples = create_examples(testdata)
+        
+        labelcount = len(LABEL_COLUMNS)
+        test_examples = create_examples(testdata, False, labelcount)
         print("Inputdata is loaded")
     except BaseException as e:
         print("Loading inputdta failed:" + str(e))
-        print("*** print_tb:")
-        traceback.print_exc(file=sys.stdout)
-        exit()
-    
-    #Load Variable
-    try:
-        f = open(variablePath, 'rb')
-        [MAX_SEQ_LENGTH, BATCH_SIZE, LEARNING_RATE, NUM_TRAIN_EPOCHS, SAVE_CHECKPOINTS_STEPS, DO_LOWER_CASE] = pickle.load(f)
-        f.close()
-        print("Variables are loaded")
-    except BaseException as e:
-        print("Loading variable failed:" + str(e))
         print("*** print_tb:")
         traceback.print_exc(file=sys.stdout)
         exit()
@@ -631,11 +638,12 @@ if __name__ == "__main__":
             input_file=test_file,
             seq_length=MAX_SEQ_LENGTH,
             is_training=False,
-            drop_remainder=False)
+            drop_remainder=False,
+            label_count = labelcount)
         
         run_config = tf.estimator.RunConfig(
             #model_dir=outputDir,
-            model_dir=outputPath,
+            model_dir=checkPointBase,
             #save_summary_steps=SAVE_SUMMARY_STEPS,
             #keep_checkpoint_max=1,
             save_checkpoints_steps=SAVE_CHECKPOINTS_STEPS)

@@ -360,24 +360,34 @@ class TextAugmentationClass:
             out.append(rows, ignore_index=True)
         return
         
-if __name__ == "__main__": 
+if __name__ == "__main__":
+    debug = True
     import sys
     #Argument list
     #inputpath, outputpath, applistpath, thval, resume, savetodisk
     #Ex: TextAugmenClass.py "c:\work\input" "c:\work\output" 0.9 100 False True
-    if (len(sys.argv) != 7):
-        print("System argument should be 7")
+    if debug == False:
+        if (len(sys.argv) != 7):
+            raise Exception("System argument should be 7")
+        inputpath = sys.argv[1]
+        outputpath = sys.argv[2]
+        applistpath = sys.argv[3]
+        thval = sys.argv[4]
+        resume = sys.argv[5]
+        savetodisk = sys.argv[6]
     else:
-        try:
-            inputpath = sys.argv[1]
-            outputpath = sys.argv[2]
-            applistpath = sys.argv[3]
-            thval = sys.argv[4]
-            resume = sys.argv[5]
-            savetodisk = sys.argv[6]
-            ta_class = TextAugmentationClass(outputpath, thval, applistpath)
-            ta_class.AugmentText(inputpath, outputpath, resume, savetodisk)
-        except BaseException as e:
-            print("Text augmentation has failed:" + str(e))
+        ROOTPATH = r'C:\Work\Hackathone\UIFtextaugmentation'
+        inputpath = ROOTPATH + r'\Data\UIFTestData.csv'
+        outputpath = ROOTPATH + r'\Output\UIFTestDataAugmented.csv'
+        applistpath = ""
+        thval = 0.8
+        resume = False
+        savetodisk = True
+        
+    try:
+        ta_class = TextAugmentationClass(outputpath, thval, applistpath)
+        ta_class.AugmentText(inputpath, outputpath, resume, savetodisk)
+    except BaseException as e:
+        raise Exception("Text augmentation has failed:" + str(e))
     
         
