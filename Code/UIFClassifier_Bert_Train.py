@@ -5,7 +5,7 @@ Created on Thu Jul  9 14:40:09 2020
 @author: hybae
 """
 
-import os
+import os, pickle, traceback
 import collections
 import pandas as pd
 import tensorflow as tf
@@ -18,23 +18,14 @@ from bert import tokenization
 from bert import modeling
 from sklearn.model_selection import train_test_split
 
-ROOTPATH = r'C:\Work\Hackathone\UIFtextaugmentation'
 ##use downloaded model, change path accordingly
-BERT_VOCAB= ROOTPATH + r'\BertPretrainedModel\cased_L-12_H-768_A-12\vocab.txt'
-BERT_INIT_CHKPNT = ROOTPATH + r'\BertPretrainedModel\cased_L-12_H-768_A-12\bert_model.ckpt'
-BERT_CONFIG = ROOTPATH + r'\BertPretrainedModel\cased_L-12_H-768_A-12\bert_config.json'
+BERT_VOCAB= r'.\BertPretrainedModel\cased_L-12_H-768_A-12\vocab.txt'
+BERT_INIT_CHKPNT = r'.\BertPretrainedModel\cased_L-12_H-768_A-12\bert_model.ckpt'
+BERT_CONFIG = r'.\BertPretrainedModel\cased_L-12_H-768_A-12\bert_config.json'
 
 tokenization.validate_case_matches_checkpoint(True,BERT_INIT_CHKPNT)
 tokenizer = tokenization.FullTokenizer(
       vocab_file=BERT_VOCAB, do_lower_case=False)
-
-##load training data
-train_data_path= ROOTPATH + r'\Data\UIFTestData_BertCompatible.csv'
-train = pd.read_csv(train_data_path)
-
-ID = 'ID'
-DATA_COLUMN = 'Text'
-LABEL_COLUMNS = train.columns[2:]
 
 class InputExample(object):
     """A single training/test example for simple sequence classification."""
@@ -67,7 +58,7 @@ class InputFeatures(object):
         self.label_ids = label_ids,
         self.is_real_example=is_real_example
 
-def create_examples(df, labels_available=True):
+def create_examples(df, labels_available, labelcount):
     """Creates examples for the training and dev sets."""
     examples = []
     for (i, row) in enumerate(df.values):
@@ -76,20 +67,10 @@ def create_examples(df, labels_available=True):
         if labels_available:
             labels = row[2:]
         else:
-            labels = [0]*len(LABEL_COLUMNS)
+            labels = [0]*labelcount
         examples.append(
             InputExample(guid=guid, text_a=text_a, labels=labels))
     return examples
-
-
-TRAIN_VAL_RATIO = 0.9
-#LEN = train.shape[0]
-#SIZE_TRAIN = int(TRAIN_VAL_RATIO*LEN)
-#x_train = train[:SIZE_TRAIN]
-#x_val = train[SIZE_TRAIN:]
-x_train, x_val = train_test_split(train, test_size=1 - TRAIN_VAL_RATIO, random_state=42)
-
-train_examples = create_examples(x_train)
 
 def convert_examples_to_features(examples,  max_seq_length, tokenizer):
     """Loads a data file into a list of `InputBatch`s."""
@@ -173,27 +154,6 @@ def convert_examples_to_features(examples,  max_seq_length, tokenizer):
                               segment_ids=segment_ids,
                               label_ids=labels_ids))
     return features
-
-# We'll set sequences to be at most 128 tokens long.
-MAX_SEQ_LENGTH = 128
-
-# Compute train and warmup steps from batch size
-# These hyperparameters are copied from this colab notebook (https://colab.sandbox.google.com/github/tensorflow/tpu/blob/master/tools/colab/bert_finetuning_with_cloud_tpus.ipynb)
-BATCH_SIZE = 16
-LEARNING_RATE = 2e-5
-NUM_TRAIN_EPOCHS = 2.0
-# Warmup is a period of time where the learning rate 
-# is small and gradually increases--usually helps training.
-WARMUP_PROPORTION = 0.1
-# Model configs
-SAVE_CHECKPOINTS_STEPS = 1000
-SAVE_SUMMARY_STEPS = 500
-DO_LOWER_CASE = False
-VAR_PATH = ROOTPATH + r"\Train\Working\variable.pckl"
-import pickle
-f = open(VAR_PATH, 'wb')
-pickle.dump([MAX_SEQ_LENGTH, BATCH_SIZE, LEARNING_RATE, NUM_TRAIN_EPOCHS, SAVE_CHECKPOINTS_STEPS, DO_LOWER_CASE], f)
-f.close()
 
 class PaddingInputExample(object):
     """Fake example so the num input examples is a multiple of the batch size.
@@ -333,14 +293,14 @@ def file_based_convert_examples_to_features(
 
 
 def file_based_input_fn_builder(input_file, seq_length, is_training,
-                                drop_remainder):
+                                drop_remainder, label_count):
     """Creates an `input_fn` closure to be passed to TPUEstimator."""
 
     name_to_features = {
         "input_ids": tf.FixedLenFeature([seq_length], tf.int64),
         "input_mask": tf.FixedLenFeature([seq_length], tf.int64),
         "segment_ids": tf.FixedLenFeature([seq_length], tf.int64),
-        "label_ids": tf.FixedLenFeature([len(LABEL_COLUMNS)], tf.int64),#"label_ids": tf.FixedLenFeature([6], tf.int64),
+        "label_ids": tf.FixedLenFeature([label_count], tf.int64),#"label_ids": tf.FixedLenFeature([6], tf.int64),
         "is_real_example": tf.FixedLenFeature([], tf.int64),
     }
 
@@ -395,30 +355,6 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
             tokens_a.pop()
         else:
             tokens_b.pop()
-
-# Compute # train and warmup steps from batch size
-num_train_steps = int(len(train_examples) / BATCH_SIZE * NUM_TRAIN_EPOCHS)
-num_warmup_steps = int(num_train_steps * WARMUP_PROPORTION)
-
-train_file = os.path.join(ROOTPATH + r'\Train\Working', "train.tf_record")
-#filename = Path(train_file)
-if not os.path.exists(train_file):
-    open(train_file, 'w').close()
-    
-
-file_based_convert_examples_to_features(
-            train_examples, MAX_SEQ_LENGTH, tokenizer, train_file)
-tf.logging.info("***** Running training *****")
-tf.logging.info("  Num examples = %d", len(train_examples))
-tf.logging.info("  Batch size = %d", BATCH_SIZE)
-tf.logging.info("  Num steps = %d", num_train_steps)
-
-train_input_fn = file_based_input_fn_builder(
-    input_file=train_file,
-    seq_length=MAX_SEQ_LENGTH,
-    is_training=True,
-    drop_remainder=True)
-
 
 def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
                  labels, num_labels, use_one_hot_embeddings):
@@ -580,31 +516,147 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
 
     return model_fn
 
-OUTPUT_DIR = ROOTPATH + r"\Train\Working\checkpoints"
-# Specify outpit directory and number of checkpoint steps to save
-run_config = tf.estimator.RunConfig(
-    model_dir=OUTPUT_DIR,
-    save_summary_steps=SAVE_SUMMARY_STEPS,
-    keep_checkpoint_max=1,
-    save_checkpoints_steps=SAVE_CHECKPOINTS_STEPS)
+if __name__ == "__main__":
+    import sys
+    '''
+    Usage: python UIFClassifier_Bert_Train.py Debug inputDataPath modelCheckPointPath variablePath
+    #Expected input
+     Debug: True - Load default value 
+     inputDataPath: File path to the inputData
+     modelCheckPointPath: Directory path to store the checkpoint
+     variablePath: File path to store pickle dump file
+    '''
+    try:
+        debug = sys.argv[1]
+    except BaseException as e:
+        print("Could not load debug argument. In debug mode")
+        debug = True
+    
+    if debug == True:
+        inputDataPath = r'.\Data\UIFTestData_BertCompatible.csv'
+        #This checkpoint path should be updated based upon the latest training result
+        modelCheckPointPath = r'.\Train\Working\checkpoints'
+        variablePath = r'.\Train\Working\variable.pckl'
+    else:
+        if len(sys.argv) != 5:
+            raise Exception("Usage: python UIFClassifier_Bert_Predict.py Debug inputDataPath modelCheckPointPath variablePath")
+        inputDataPath = sys.argv[2]
+        modelCheckPointPath = sys.argv[3]
+        variablePath = sys.argv[4]
+    
+    ##load training data
+    try:
+        train = pd.read_csv(inputDataPath)
+    except BaseException as e:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        print("*** print_tb:")
+        traceback.print_exc(file=sys.stdout)
+        raise Exception("Failed to read train data:" + str(e))
+    
+    #Define some variables and store them for prediction
+    try:
+        ID = 'ID'
+        DATA_COLUMN = 'Text'
+        LABEL_COLUMNS = train.columns[2:]
+        labelcount = len(LABEL_COLUMNS)
+        # We'll set sequences to be at most 128 tokens long.
+        MAX_SEQ_LENGTH = 128
+        # Compute train and warmup steps from batch size
+        # These hyperparameters are copied from this colab notebook (https://colab.sandbox.google.com/github/tensorflow/tpu/blob/master/tools/colab/bert_finetuning_with_cloud_tpus.ipynb)
+        BATCH_SIZE = 16
+        LEARNING_RATE = 2e-5
+        NUM_TRAIN_EPOCHS = 2.0
+        # Warmup is a period of time where the learning rate 
+        # is small and gradually increases--usually helps training.
+        WARMUP_PROPORTION = 0.1
+        # Model configs
+        SAVE_CHECKPOINTS_STEPS = 1000
+        SAVE_SUMMARY_STEPS = 500
+        DO_LOWER_CASE = False
+        VAR_PATH = r".\Train\Working\variable.pckl"
+        f = open(VAR_PATH, 'wb')
+        pickle.dump([MAX_SEQ_LENGTH, BATCH_SIZE, LEARNING_RATE, NUM_TRAIN_EPOCHS, SAVE_CHECKPOINTS_STEPS, DO_LOWER_CASE, LABEL_COLUMNS], f)
+        f.close()
+    except BaseException as e:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        print("*** print_tb:")
+        traceback.print_exc(file=sys.stdout)
+        raise Exception("Failed to set global variables:" + str(e))
+    
+    #Prepare training data
+    try:
+        TRAIN_VAL_RATIO = 0.9
+        x_train, x_val = train_test_split(train, test_size=1 - TRAIN_VAL_RATIO, random_state=42)
+        train_examples = create_examples(x_train, True, labelcount)
+        # Compute # train and warmup steps from batch size
+        num_train_steps = int(len(train_examples) / BATCH_SIZE * NUM_TRAIN_EPOCHS)
+        num_warmup_steps = int(num_train_steps * WARMUP_PROPORTION)
+        
+        train_file = os.path.join(r'.\Train\Working', "train.tf_record")
+        #filename = Path(train_file)
+        if not os.path.exists(train_file):
+            open(train_file, 'w').close()
+            
+        
+        file_based_convert_examples_to_features(
+                    train_examples, MAX_SEQ_LENGTH, tokenizer, train_file)
+        tf.logging.info("***** Running training *****")
+        tf.logging.info("  Num examples = %d", len(train_examples))
+        tf.logging.info("  Batch size = %d", BATCH_SIZE)
+        tf.logging.info("  Num steps = %d", num_train_steps)
+        
+        train_input_fn = file_based_input_fn_builder(
+            input_file=train_file,
+            seq_length=MAX_SEQ_LENGTH,
+            is_training=True,
+            drop_remainder=True, 
+            label_count = labelcount)
+    except BaseException as e:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        print("*** print_tb:")
+        traceback.print_exc(file=sys.stdout)
+        raise Exception("Failed to prepare the training data:" + str(e))
 
-bert_config = modeling.BertConfig.from_json_file(BERT_CONFIG)
-model_fn = model_fn_builder(
-  bert_config=bert_config,
-  num_labels= len(LABEL_COLUMNS),
-  init_checkpoint=BERT_INIT_CHKPNT,
-  learning_rate=LEARNING_RATE,
-  num_train_steps=num_train_steps,
-  num_warmup_steps=num_warmup_steps,
-  use_tpu=False,
-  use_one_hot_embeddings=False)
+    #Build Model
+    try:
+        OUTPUT_DIR = r".\Train\Working\checkpoints"
+        # Specify outpit directory and number of checkpoint steps to save
+        run_config = tf.estimator.RunConfig(
+            model_dir=OUTPUT_DIR,
+            save_summary_steps=SAVE_SUMMARY_STEPS,
+            keep_checkpoint_max=1,
+            save_checkpoints_steps=SAVE_CHECKPOINTS_STEPS)
+        
+        bert_config = modeling.BertConfig.from_json_file(BERT_CONFIG)
+        model_fn = model_fn_builder(
+          bert_config=bert_config,
+          num_labels= len(LABEL_COLUMNS),
+          init_checkpoint=BERT_INIT_CHKPNT,
+          learning_rate=LEARNING_RATE,
+          num_train_steps=num_train_steps,
+          num_warmup_steps=num_warmup_steps,
+          use_tpu=False,
+          use_one_hot_embeddings=False)
+        
+        estimator = tf.estimator.Estimator(
+          model_fn=model_fn,
+          config=run_config,
+          params={"batch_size": BATCH_SIZE})
+    except BaseException as e:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        print("*** print_tb:")
+        traceback.print_exc(file=sys.stdout)
+        raise Exception("Failed to build the model:" + str(e))
 
-estimator = tf.estimator.Estimator(
-  model_fn=model_fn,
-  config=run_config,
-  params={"batch_size": BATCH_SIZE})
-
-print(f'Beginning Training!')
-current_time = datetime.now()
-result = estimator.train(input_fn=train_input_fn, max_steps=num_train_steps)
-print("Training took time ", datetime.now() - current_time)
+    #Train the model
+    try:        
+        print(f'Beginning Training!')
+        current_time = datetime.now()
+        result = estimator.train(input_fn=train_input_fn, max_steps=num_train_steps)
+        print("Training took time ", datetime.now() - current_time)
+        print("Please copy the checkpoint path to use it for your prediction")
+    except BaseException as e:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        print("*** print_tb:")
+        traceback.print_exc(file=sys.stdout)
+        raise Exception("Failed to train the model:" + str(e))
