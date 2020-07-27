@@ -547,6 +547,7 @@ if __name__ == "__main__":
     ##load training data
     try:
         train = pd.read_csv(inputDataPath)
+        print("Train data is loaded")
     except BaseException as e:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         print("*** print_tb:")
@@ -575,8 +576,9 @@ if __name__ == "__main__":
         DO_LOWER_CASE = False
         VAR_PATH = r".\Train\Working\variable.pckl"
         f = open(VAR_PATH, 'wb')
-        pickle.dump([MAX_SEQ_LENGTH, BATCH_SIZE, LEARNING_RATE, NUM_TRAIN_EPOCHS, SAVE_CHECKPOINTS_STEPS, DO_LOWER_CASE, LABEL_COLUMNS], f)
+        pickle.dump([MAX_SEQ_LENGTH, BATCH_SIZE, LEARNING_RATE, NUM_TRAIN_EPOCHS, SAVE_CHECKPOINTS_STEPS, DO_LOWER_CASE, ID, DATA_COLUMN, LABEL_COLUMNS], f)
         f.close()
+        print("Variable saved")
     except BaseException as e:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         print("*** print_tb:")
@@ -611,6 +613,7 @@ if __name__ == "__main__":
             is_training=True,
             drop_remainder=True, 
             label_count = labelcount)
+        print("Training data prep is done")
     except BaseException as e:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         print("*** print_tb:")
@@ -642,6 +645,7 @@ if __name__ == "__main__":
           model_fn=model_fn,
           config=run_config,
           params={"batch_size": BATCH_SIZE})
+        print("Model is ready for training")
     except BaseException as e:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         print("*** print_tb:")

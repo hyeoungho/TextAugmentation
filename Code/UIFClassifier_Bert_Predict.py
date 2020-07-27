@@ -23,13 +23,6 @@ BERT_VOCAB= r'.\BertPretrainedModel\cased_L-12_H-768_A-12\vocab.txt'
 BERT_INIT_CHKPNT = r'.\BertPretrainedModel\cased_L-12_H-768_A-12\bert_model.ckpt'
 BERT_CONFIG = r'.\BertPretrainedModel\cased_L-12_H-768_A-12\bert_config.json'
 
-#LABEL_COLUMNS needs to be changed according to the input data
-ID = 'Id'
-DATA_COLUMN = 'Text'
-LABEL_COLUMNS = ['UIF\Apps\Microsoft Edge', 'UIF\Apps\Movies and TV', 
-                 'UIF\Devices and Drivers\Display and Graphic drivers', 
-                 'UIF\Input and Language\Mouse']
-
 class InputExample(object):
     """A single training/test example for simple sequence classification."""
 
@@ -575,15 +568,15 @@ if __name__ == "__main__":
     try:
         debug = sys.argv[1]
     except BaseException as e:
-        print("Could not load debug argument. In debug mode")
+        print("Could not load debug argument. In debug mode: " + str(e))
         debug = True
     
     if debug == True:
-        inputDataPath = r'.\Data\test.csv'
+        inputDataPath = r'.\Data\UIFTestData_BertCompatible.csv'
         #This checkpoint path should be updated based upon the latest training result
         modelCheckPointPath = r'.\Train\Working\checkpoints\model.ckpt-232'
         variablePath = r'.\Train\Working\variable.pckl'
-        outputPath, _ = os.path.split(modelCheckPointPath)
+        checkPointBase, _ = os.path.split(modelCheckPointPath)
         outputDir = r'.\Train\Working\predict'
     else:
         if len(sys.argv) != 6:
@@ -595,8 +588,9 @@ if __name__ == "__main__":
     
     #Load Variable
     try:
+        #LABEL_COLUMNS needs to be changed according to the input data
         f = open(variablePath, 'rb')
-        [MAX_SEQ_LENGTH, BATCH_SIZE, LEARNING_RATE, NUM_TRAIN_EPOCHS, SAVE_CHECKPOINTS_STEPS, DO_LOWER_CASE, LABEL_COLUMNS] = pickle.load(f)
+        [MAX_SEQ_LENGTH, BATCH_SIZE, LEARNING_RATE, NUM_TRAIN_EPOCHS, SAVE_CHECKPOINTS_STEPS, DO_LOWER_CASE, ID, DATA_COLUMN, LABEL_COLUMNS] = pickle.load(f)
         f.close()
         print("Variables are loaded")
     except BaseException as e:
@@ -614,7 +608,7 @@ if __name__ == "__main__":
             raise Exception("InputData does not follow the required format. Id or Text missing")
         
         labelcount = len(LABEL_COLUMNS)
-        test_examples = create_examples(testdata, True, labelcount)
+        test_examples = create_examples(testdata, False, labelcount)
         print("Inputdata is loaded")
     except BaseException as e:
         print("Loading inputdta failed:" + str(e))
@@ -645,11 +639,11 @@ if __name__ == "__main__":
             seq_length=MAX_SEQ_LENGTH,
             is_training=False,
             drop_remainder=False,
-            labelcount = labelcount)
+            label_count = labelcount)
         
         run_config = tf.estimator.RunConfig(
             #model_dir=outputDir,
-            model_dir=outputPath,
+            model_dir=checkPointBase,
             #save_summary_steps=SAVE_SUMMARY_STEPS,
             #keep_checkpoint_max=1,
             save_checkpoints_steps=SAVE_CHECKPOINTS_STEPS)
