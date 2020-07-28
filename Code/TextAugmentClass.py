@@ -17,38 +17,27 @@ import re
 import sys, traceback
 
 class TextAugmentationClass:
-    def __init__(self, outputpath, thval=0.8, applistpath=""):
+    def __init__(self, outputpath, thval=0.8):
         module_url = "https://tfhub.dev/google/universal-sentence-encoder-large/3"
-        if os.path.isdir(outputpath) != True:
-            os.mkdir(outputpath)
+        self.outputdir, _ = os.path.split(outputpath)
+        if os.path.isdir(self.outputdir) != True:
+            os.mkdir(self.outputdir)
         self.outputpath = outputpath
-        self.variablepath = outputpath + r'\variable.pckl'
+        self.variablepath = self.outputdir + r'\variable.pckl'
         self.thval = thval
-        #self.maxsyn = maxsyn
         self.embed_fn = self.embed_useT(module_url)
-        self.data = pd.DataFrame(columns=['Text', 'Category', 'Keywords', 'HasKeywords'])
         self.nlp = spacy.load("en_core_web_sm")
         nltk.download('stopwords')
         nltk.download('wordnet')
         self.stop_words = stopwords.words('english')
         
-        try:
-            if os.path.isfile(applistpath):
-                self.applist = list(open(applistpath, encoding='latin1'))
-                #cleanup
-                for app in self.applist:
-                    if self.is_ascii(app) != True:
-                        self.applist.remove(app)
-        except BaseException as e:
-            print("Applist file open has failed: " + str(e))
-    
     def caldatadist(self, inputdata):
-        self.catlist = inputdata['Category'].str.get_dummies(sep=';').columns
+        self.catlist = inputdata['AreaPath'].str.get_dummies(sep=';').columns
         self.datadist = []
         self.weightlist = []
         total = len(inputdata)
         for i in range(0, len(self.catlist)):
-            count = len(inputdata[inputdata['Category'].str.contains(self.catlist[i])])
+            count = len(inputdata[inputdata['AreaPath'].str.contains(self.catlist[i])])
             self.datadist.append(count)
             self.weightlist.append(total/(count + 1))
         m = min(self.weightlist)
@@ -70,7 +59,7 @@ class TextAugmentationClass:
         try:
             if len(self.data) > 0:
                 self.data.to_csv(self.outputpath, encoding="latin1", index=False)
-                print("Successfully saved the data. Length:" + len(self.data))
+                print("Successfully saved the data. Length:" + str(len(self.data)))
             else:
                 print("Nothing to save")
         except BaseException as e:
@@ -117,11 +106,11 @@ class TextAugmentationClass:
         vec2 = self.get_features(text2)[0]
         return self.cosine_similarity(vec1, vec2)
     
-    def maxsynonym(self, words, postags, nertags, category):
+    def maxsynonym(self, words, postags, category):
         vbnum = 0
         maxsynnum = 0
         for i in range(0,len(words)):
-            if np.sum(np.isin(self.stop_words, words[i])) == 0 and postags[i] == 'VERB' and nertags[i] == 'NK':
+            if np.sum(np.isin(self.stop_words, words[i])) == 0 and postags[i] == 'VERB':
                 vbnum = vbnum + 1
         if vbnum > 0:
             #print(str(vbnum))
@@ -171,8 +160,7 @@ class TextAugmentationClass:
     
     def AugmentText(self, inputpath, outputpath, resume, savetodisk):
         #Assume that below columns to exist
-        #Text, Keywords
-        
+        #ID, Text
         if resume == False:
             self.ind = 0
             #Read Data
@@ -185,14 +173,12 @@ class TextAugmentationClass:
             #Check column names:
             try:
                 col_list = list(inputData.columns)
-                if (('Text' not in col_list) or ('Keywords' not in col_list)):
-                    raise Exception("Input data should have following columns: Text, Keywords")
-                
-                #Check if 'Category' column exists:
-                if ('Category' not in col_list):
-                    inputData['Category'] = ""
+                if (('Text' not in col_list) or ('ID' not in col_list)):
+                    raise Exception("Input data should have following columns: Text, ID")
+                self.data = pd.DataFrame(columns = inputData.columns)
             except BaseException as e:
                 print("Input data has problem:" + str(e))
+                return
             
             #Remove non-ascii rows:
             try:
@@ -216,47 +202,51 @@ class TextAugmentationClass:
                 print("outputpath is invalid")
                 return
             
-            variablepath = outputpath + r'\variable.pckl'
-            if os.path.isfile(variablepath) != True:
+            if os.path.isfile(self.variablepath) != True:
                 print("variable to restore the state does not exist")
                 return
             
-            self = pickle.load(variablepath)
+            [self.data, self.thval, self.catlist, self.weightlist, self.ind, self.inputData] = pickle.load(self.variablepath)
+            
         #Augment text:
         try:
             for doc in self.nlp.pipe(self.inputData["Text"][self.ind:]):
-                augres = pd.DataFrame(columns=['Text', 'Category', 'Keywords', 'HasKeywords'])
-                #NERTag
-                keywords = self.inputData.loc[self.ind, "Keywords"].strip()
-                category = self.inputData.loc[self.ind, "Category"]
-                if len(keywords) > 0:
-                    nertags = self.NERTagging([token.text for token in doc], keywords)
-                    haskey = 'TRUE'
-                else:
-                    #nertags = ' '.join(['NK']*len([token.text for token in doc]))
-                    nertags = ['NK']*len([token.text for token in doc])
-                    haskey = 'FALSE'
+                augres = pd.DataFrame(columns=self.inputData.columns)
+                
                 #Replace title with lemmatized one
                 x = ' '.join([token.text for token in doc])
-                #snertags = ' '.join([str(token.ent_type) for token in doc])
-                #postags = ' '.join([token.pos_ for token in doc])
                 postags = [token.pos_ for token in doc]
-                sentlist = self.text_augmentation(x, postags, nertags, category)
+                category = self.inputData["AreaPath"][self.ind]
+                
+                #
+                # Text augmentation start
+                # Should follow below steps: augment and add
+                
+                #Augment
+                sentlist = self.text_augmentation(x, postags, category)                
                 #Add to the data
                 sentlist.append(x)
                 augres['Text'] = sentlist
-                augres['Category'] = category
-                augres['Keywords'] = keywords
-                augres['HasKeywords'] = haskey
-                self.data.append(augres)
+                collist = [col for col in inputData.columns if col != 'Text']
+                for col in collist:
+                    augres[col] = self.inputData.loc[self.ind, col]
+                self.data = self.data.append(augres)
+                
+                #
+                # Text augmentation end
+                #
+                
                 self.ind = self.ind + 1
-                if (haskey == 'TRUE' and ('AppFunc' in category or 'AppInst' in category or 'Crash' in category)):
-                    augres = self.AppNameAugmentation(augres, 5)
                 
                 #Store the state
-                if (self.ind > 1 and self.ind % 10000 == 0):
+                if (self.ind > 1 and self.ind % 10 == 0):
                     print("Current progress: " + str(self.ind) + "/" + str(len(self.inputData)))
-                    pickle.dump(self)
+                    print("Output data length: " + str(len(self.data)))
+                    f = open(self.variablepath, 'wb')
+                    pickle.dump([self.data, self.thval, self.catlist, self.weightlist, self.ind, self.inputData], f)      
+                    f.close()
+                    self.storeData()
+                    
         except BaseException as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             print("Text augmentation has failed:" + str(e))
@@ -273,16 +263,16 @@ class TextAugmentationClass:
             return
     
     #Text augmentation function
-    def text_augmentation(self, x, postags, nertags, category):
+    def text_augmentation(self, x, postags, category):
         words = x.split()
-        synnum = self.maxsynonym(words, postags, nertags, category)
+        synnum = self.maxsynonym(words, postags, category)
         if synnum == 0:
             print("text_augmentation: no candidate words")
             return []
         else:
             orgsent = x
             similarsent = []
-            candidates = pd.unique(self.textaugmentation(x, postags, nertags, synnum, 0))
+            candidates = pd.unique(self.textaugmentation(x, postags, synnum, 0))
             #if (len(candidates) > self.maxsyn):
             #    candidates = candidates[:self.maxsyn]
             print("text_augmentation: " + str(len(candidates)) + " candidates")
@@ -297,13 +287,13 @@ class TextAugmentationClass:
             return similarsent
     
     #Recursive text augmentation function
-    def textaugmentation(self, x, postags, nertags, synnum, ind):
+    def textaugmentation(self, x, postags, synnum, ind):
         '''This function is used to generate rows in the dataframe'''
         auglist = []
         words = x.split()
         for i in range(ind, len(words)):
             #print(str(i))
-            if np.sum(np.isin(self.stop_words, words[i])) == 0 and postags[i] == 'VERB' and nertags[i] == 'NK':
+            if np.sum(np.isin(self.stop_words, words[i])) == 0 and postags[i] == 'VERB':
                 #Find synonym
                 synonyms = []
                 for syn in wordnet.synsets(words[i]): 
@@ -327,67 +317,51 @@ class TextAugmentationClass:
                     newwords[i] = synonyms[j]
                     newx = " ".join(newwords)
                     if (i < len(words) - 1) :
-                        auglist.extend([newx] + self.textaugmentation(newx, postags, nertags, synnum, i + 1))
+                        auglist.extend([newx] + self.textaugmentation(newx, postags, synnum, i + 1))
                     else :
                         auglist.extend([newx])
                 break
         return auglist
-    
-    def AppNameAugmentation(self, rows, num):
-        import random
-        out = pd.DataFrame(columns = rows.columns)
-        for i in range(0, len(rows)):
-            appnames = rows.loc[i, 'Keywords'].split(';')
-            while True:
-                ind = random.randrange(0, len(appnames))
-                oldapp = appnames[ind]
-                if oldapp.lower() in rows.loc[i, 'Text'].lower():
-                    break
-            randomselect = []
-            for i in range(0, num):
-                while True:
-                    newapp = random.choice(self.applist)
-                    if newapp not in appnames and newapp not in randomselect:
-                        randomselect.append(newapp)
-                        appnames[ind] = newapp
-                        newappnames = ';'.join(appnames)
-                        cand = rows.loc[i,]
-                        cand['Text'] = cand['Text'].replace(oldapp, newapp)
-                        cand['Keywords'] = newappnames
-                        out.append(cand, ignore_index=True)
-                        break
-            print('App name replacement added ' + str(len(out)) + ' sentences')
-            out.append(rows, ignore_index=True)
-        return
         
 if __name__ == "__main__":
-    debug = True
-    import sys
+    '''
     #Argument list
-    #inputpath, outputpath, applistpath, thval, resume, savetodisk
-    #Ex: TextAugmenClass.py "c:\work\input" "c:\work\output" 0.9 100 False True
+    # Debug: True- debug mode
+    # inputpath: File path to the input data
+    # outputpath: File path to the output data
+    # thval; Threshold value for similarity
+    # resume: Switch to resume (False when you start from the beginning)
+    # savetodisk: Option to save
+    #Ex: python TextAugmenClass.py "c:\work\input\test.csv" "c:\work\output\output.csv" 0.9 100 False True
+    '''
+    try:
+        debug = sys.argv[1]
+    except BaseException as e:
+        debug = True
+        print("No argument. Proceed with debug mode:" + str(e))
+    
     if debug == False:
         if (len(sys.argv) != 7):
-            raise Exception("System argument should be 7")
-        inputpath = sys.argv[1]
-        outputpath = sys.argv[2]
-        applistpath = sys.argv[3]
+            raise Exception("Invalid argument: Usage: python TextAugmenClass.py \"c:\work\input\test.csv\" \"c:\work\output\output.csv\" 0.9 100 False True")
+        inputpath = sys.argv[2]
+        outputpath = sys.argv[3]
         thval = sys.argv[4]
         resume = sys.argv[5]
         savetodisk = sys.argv[6]
-    else:
-        ROOTPATH = r'C:\Work\Hackathone\UIFtextaugmentation'
-        inputpath = ROOTPATH + r'\Data\UIFTestData.csv'
-        outputpath = ROOTPATH + r'\Output\UIFTestDataAugmented.csv'
-        applistpath = ""
+    else:        
+        inputpath = r'.\Data\UIFTestData2.csv'
+        outputpath = r'.\Output\output.csv'
         thval = 0.8
         resume = False
         savetodisk = True
-        
     try:
-        ta_class = TextAugmentationClass(outputpath, thval, applistpath)
+        ta_class = TextAugmentationClass(outputpath, thval)
         ta_class.AugmentText(inputpath, outputpath, resume, savetodisk)
     except BaseException as e:
-        raise Exception("Text augmentation has failed:" + str(e))
+        print("Text augmentation has failed:" + str(e))
+        print("*** print_tb:")
+        traceback.print_exc(file=sys.stdout)
+        exit()
+        
     
         
