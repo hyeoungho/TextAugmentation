@@ -20,6 +20,14 @@ Under the assumption, you want to install below things first:
     
     Then you play with pip to install all the packages that you need to install
 
+Below is the list of libraries that you need to install. Even though requirement.txt contains all the library list, you don't need to manually install all of them. 
+  ```
+  tensorflow(-gpu)==1.14
+  tensorflow_hub
+  pandas
+  numpy
+  sklearn
+  ```
 ## Data
 
   Our data can only be shared internally. Please DO NOT include it in your PR.
