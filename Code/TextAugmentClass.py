@@ -37,7 +37,7 @@ class TextAugmentationClass:
         self.weightlist = []
         total = len(inputdata)
         for i in range(0, len(self.catlist)):
-            count = len(inputdata[inputdata['AreaPath'].str.contains(self.catlist[i])])
+            count = len(inputdata[inputdata['AreaPath'] == self.catlist[i]])
             self.datadist.append(count)
             self.weightlist.append(total/(count + 1))
         m = min(self.weightlist)
@@ -362,7 +362,7 @@ if __name__ == "__main__":
         resume = sys.argv[5]
         savetodisk = sys.argv[6]
     else:        
-        inputpath = r'.\Data\UIFTestData2.csv'
+        inputpath = r'.\Data\UIFTestData.csv'
         outputpath = r'.\Output\output.csv'
         thval = 0.8
         resume = False
