@@ -7,6 +7,16 @@ Created on Fri Jul 24 15:40:19 2020
 
 import pandas as pd
 import numpy as np
+import numpy as np
+import matplotlib.pyplot as plt
+from itertools import cycle
+from sklearn import svm, datasets
+from sklearn.metrics import roc_curve, auc
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import label_binarize
+from sklearn.multiclass import OneVsRestClassifier
+from scipy import interp
+from sklearn.metrics import roc_auc_score
 
 def convertDataFrame(inputDataPath, colname):
     '''
@@ -35,3 +45,15 @@ def convertDataFrame(inputDataPath, colname):
         out.loc[i, categories[0]:] = cat
     
     return(out)
+    
+def ROCAnalysis(y_true, y_pred):
+    if all(y_true.columns == y_pred.columns) != True:
+        raise Exception("Column does not match between GT and Prediction data")
+    classes = y_true.columns
+    # Compute ROC curve and ROC area for each class
+    fpr = dict()
+    tpr = dict()
+    roc_auc = dict()
+    for i in classes:
+        fpr[i], tpr[i], _ = roc_curve(y_true.loc[:, i], y_pred[:, i])
+        roc_auc[i] = auc(fpr[i], tpr[i])    
