@@ -58,7 +58,10 @@ class TextAugmentationClass:
     def storeData(self):
         try:
             if len(self.data) > 0:
-                self.data.to_csv(self.outputpath, encoding="latin1", index=False)
+                if os.path.exists(self.outputpath):
+                    self.data.to_csv(self.outputpath, mode='a', encoding="latin1", header=False, index=False)
+                else:
+                    self.data.to_csv(self.outputpath, encoding="latin1", index=False)
                 print("Successfully saved the data. Length:" + str(len(self.data)))
             else:
                 print("Nothing to save")
@@ -170,6 +173,15 @@ class TextAugmentationClass:
                 print("inputpath is invalid:" + str(e))
                 return
             
+            try:
+                if os.path.exists(self.outputpath):
+                    os.remove(self.outputpath)
+                if os.path.exists(self.variablepath):
+                    os.remove(self.variablepath)
+            except BaseException as e:
+                print("Failed to remove previous files:" + str(e))
+                return
+            
             #Check column names:
             try:
                 col_list = list(inputData.columns)
@@ -242,10 +254,11 @@ class TextAugmentationClass:
                 if (self.ind > 1 and self.ind % 10 == 0):
                     print("Current progress: " + str(self.ind) + "/" + str(len(self.inputData)))
                     print("Output data length: " + str(len(self.data)))
+                    self.storeData()
+                    self.data = pd.DataFrame(columns = inputData.columns)
                     f = open(self.variablepath, 'wb')
                     pickle.dump([self.data, self.thval, self.catlist, self.weightlist, self.ind, self.inputData], f)      
                     f.close()
-                    self.storeData()
                     
         except BaseException as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
