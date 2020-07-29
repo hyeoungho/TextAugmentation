@@ -32,12 +32,12 @@ class TextAugmentationClass:
         self.stop_words = stopwords.words('english')
         
     def caldatadist(self, inputdata):
-        self.catlist = inputdata['AreaPath'].str.get_dummies(sep=';').columns
+        self.catlist = list(inputdata['AreaPath'].str.get_dummies(sep=';').columns)
         self.datadist = []
         self.weightlist = []
         total = len(inputdata)
         for i in range(0, len(self.catlist)):
-            count = len(inputdata[inputdata['AreaPath'].str.contains(self.catlist[i])])
+            count = len(inputdata[inputdata['AreaPath'] == self.catlist[i]])
             self.datadist.append(count)
             self.weightlist.append(total/(count + 1))
         m = min(self.weightlist)
@@ -135,9 +135,9 @@ class TextAugmentationClass:
                         else:
                             weight = _weight
         except BaseException as e:
-            #do nothing
+            print("Category not found in list of category weightings:" + str(e))
             weight = 1
-        return maxsynnum*weight
+        return maxsynnum*int(weight)
     
     def NERTagging(self, sent_tockenized, appnames) :
         #To deal with ';' delimited appnames
@@ -362,7 +362,7 @@ if __name__ == "__main__":
         resume = sys.argv[5]
         savetodisk = sys.argv[6]
     else:        
-        inputpath = r'.\Data\UIFTestData2.csv'
+        inputpath = r'.\Data\UIFTestData.csv'
         outputpath = r'.\Output\output.csv'
         thval = 0.8
         resume = False
