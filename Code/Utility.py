@@ -140,7 +140,7 @@ def ROCAnalysis(y_true, y_pred):
     plt.ylim([0.0, 1.05])
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title('Some extension of Receiver operating characteristic to multi-class')
+    plt.title('Multi-class ROC Comparison')
     plt.legend(loc="lower right")
     plt.show()
     
