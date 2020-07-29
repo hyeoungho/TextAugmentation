@@ -229,6 +229,7 @@ class TextAugmentationClass:
         #Augment text:
         try:
             for doc in self.nlp.pipe(self.inputData["Text"][self.ind:]):
+                #print(doc)
                 augres = pd.DataFrame(columns=self.inputData.columns)
                 
                 #Replace title with lemmatized one
@@ -241,7 +242,7 @@ class TextAugmentationClass:
                 # Should follow below steps: augment and add
                 
                 #Augment
-                #sentlist = self.text_augmentation(x, postags, category)    
+                #sentlist = self.text_augmentation(x, postags, category)  
                 sentlist = self.text_augmentation_translate(x)            
                 #Add to the data
                 sentlist.append(x)
@@ -264,7 +265,7 @@ class TextAugmentationClass:
                     self.storeData()
                     self.data = pd.DataFrame(columns = inputData.columns)
                     f = open(self.variablepath, 'wb')
-                    pickle.dump([self.data, self.thval, self.catlist, self.weightlist, self.ind, self.inputData], f)      
+                    pickle.dump([self.data, self.thval, self.catlist, self.weightlist, self.ind, self.inputData], f)   
                     f.close()
                     
         except BaseException as e:
@@ -301,9 +302,35 @@ class TextAugmentationClass:
         request = requests.post(constructed_url, headers=headers, json=body)
         response = request.json()
         stringsTranslated = []
-        #print(response[0])
-        for text in response[0]['translations']:
-            stringsTranslated.append(text['text'])
+        try:
+            for text in response[0]['translations']:
+                stringsTranslated.append(text['text'])
+        except Exception as e:
+            print("No translations received" + str(e))
+        return stringsTranslated
+
+    def translateOneByOne(self, text, languages):
+        path = '/translate?api-version=3.0'
+        endpoint = 'https://api.cognitive.microsofttranslator.com/'
+        headers = {
+        'Ocp-Apim-Subscription-Key': self.subscription_key,
+        'Content-type': 'application/json',
+        'X-ClientTraceId': str(uuid.uuid4())
+        }
+        body = [{
+        'text' : text
+        }]
+        stringsTranslated = []
+        for language in languages:
+            params = '&to=' + language
+            constructed_url = endpoint + path + params
+            request = requests.post(constructed_url, headers=headers, json=body)
+            response = request.json()    
+            try:
+                for text in response[0]['translations']:
+                    stringsTranslated.append(text['text'])
+            except Exception as e:
+                print("No response")
         return stringsTranslated
 
     #Text augmentation function
@@ -333,7 +360,7 @@ class TextAugmentationClass:
     
     def text_augmentation_translate(self, x):
         # TODO: weight by category
-        foreign_text = self.translate(x, ['de','fr','es','af','ar', 'bn', 'bs', 'fi', 'gu', 'yue', 'ca', 'cs', 'da', 'nl', 'fj', 'he', 'el'])
+        foreign_text = self.translateOneByOne(x, ['de','fr','es','af','ar', 'bn', 'bs', 'fi', 'gu', 'yue', 'ca', 'cs', 'da', 'nl', 'fj', 'he', 'el'])
         backtranslated = []
         for foreign in foreign_text:
             newSentence = self.translate(foreign,['en'])[0]
@@ -405,8 +432,8 @@ if __name__ == "__main__":
         resume = sys.argv[5]
         savetodisk = sys.argv[6]
     else:        
-        inputpath = r'.\Data\UIFTestDataSmall.csv'
-        outputpath = r'.\Output\output.csv'
+        inputpath = r'.\Data\UIFTestData2Copy.csv'
+        outputpath = r'.\Output\output2.csv'
         thval = 0.8
         resume = False
         savetodisk = True
