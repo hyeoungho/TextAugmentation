@@ -135,7 +135,7 @@ class TextAugmentationClass:
                         else:
                             weight = _weight
         except BaseException as e:
-            #do nothing
+            print("Category not found in list of category weightings:" + str(e))
             weight = 1
         return maxsynnum*int(weight)
     
