@@ -18,6 +18,7 @@ import sys, traceback
 import requests, uuid, json
 from azure.keyvault.secrets import SecretClient
 from azure.identity import DefaultAzureCredential
+import random
 
 class TextAugmentationClass:
     def __init__(self, outputpath, thval=0.8):
@@ -243,7 +244,7 @@ class TextAugmentationClass:
                 
                 #Augment
                 #sentlist = self.text_augmentation(x, postags, category)  
-                sentlist = self.text_augmentation_translate(x)            
+                sentlist = self.text_augmentation_translate_multiple(x)            
                 #Add to the data
                 sentlist.append(x)
                 augres['Text'] = sentlist
@@ -366,7 +367,22 @@ class TextAugmentationClass:
             newSentence = self.translate(foreign,['en'])[0]
             similarity = self.test_similarity(x, newSentence) 
             if (similarity > self.thval and similarity < 1):
-                backtranslated.append(newSentence.encode())
+                backtranslated.append(newSentence.encode('utf-8'))
+        return backtranslated
+    def text_augmentation_translate_multiple(self, x):
+        # TODO: weight by category
+        foreign_text = self.translateOneByOne(x, ['de','fr','es','af','ar', 'bn', 'bs', 'fi', 'gu', 'yue', 'ca', 'cs', 'da', 'nl', 'fj', 'he', 'el'])
+        backtranslated = []
+        languages_insert= ['de','fr','es','af','ar', 'bn', 'bs', 'fi', 'gu', 'yue', 'ca', 'cs', 'da', 'nl', 'fj', 'he', 'el']
+        count =0
+        for foreign in foreign_text:
+            newSentence = self.translate(foreign,[languages_insert[16-count]])[0]
+            anotherSentence = self.translate(newSentence,[languages_insert[random.randint(0, 16)]])[0]
+            finSentence = self.translate(anotherSentence, ['en'])[0]
+            count = count + 1
+            similarity = self.test_similarity(x, finSentence) 
+            if (similarity > self.thval and similarity < 1):
+                backtranslated.append(finSentence.encode('utf-8'))
         return backtranslated
 
     #Recursive text augmentation function
@@ -432,7 +448,7 @@ if __name__ == "__main__":
         resume = sys.argv[5]
         savetodisk = sys.argv[6]
     else:        
-        inputpath = r'.\Data\UIFTestData2Copy.csv'
+        inputpath = r'.\Data\UIFTestDataNoMovies.csv'
         outputpath = r'.\Output\output2.csv'
         thval = 0.8
         resume = False
