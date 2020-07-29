@@ -18,11 +18,14 @@ from scipy import interp
 from sklearn.metrics import roc_auc_score
 import re, sys, traceback
 
-def convertDataFrame(inputDataPath, colname):
+def convertDataFrame(inputDataPath, colname, totalnum=0):
     '''
     convert inputdata (in inputDataPath) to Bert supported format
     inputDataPath: file path for the inputdata
     colname: column name contains category
+    totalnum: desired total count after data balancing. If not set (0) or over 
+             the input data length, it will be ignored. If it is within the data
+             length, it will try to balance the data.
     '''
     #Read input data
     try:
@@ -35,19 +38,48 @@ def convertDataFrame(inputDataPath, colname):
     except BaseException as e:
         raise Exception("Could not find column name: " + colname)
     
+    #Prepare for data balancing
+    dobalance = False
+    if totalnum == 0:
+        print("Total number is not set. Skipping data balancing")
+    elif totalnum >= len(inputdata):
+        print("Total number is too big. Skipping data balancing")
+    else:
+        dobalance = True
+        required = totalnum
+        catdict = {}
+        for i in range(len(categories)):
+            catdict[categories[i]] = len(inputdata[inputdata[colname] == categories[i]])
+        #Sort in ascending order
+        catdict = sorted(catdict.items(), key=lambda kv: kv[1])
+        
     #Build output dataframe
     out = pd.DataFrame(columns = ['ID', 'Text'] + categories)
     
-    for i in range(0, len(categories)):
-        print(i)
-        curdata = inputdata[inputdata[colname] == categories[i]]
-        buf = pd.DataFrame(columns = out.columns)
-        buf['ID'] = curdata['ID']
-        buf['Text'] = curdata['Text']
-        buf[categories] = [0]*len(categories)
-        buf[categories[i]] = 1
-        out = out.append(buf)
-        
+    if dobalance == True:
+        for i in range(0, len(catdict)):
+            curdata = inputdata[inputdata[colname] == catdict[i][0]]
+            buf = pd.DataFrame(columns = out.columns)
+            buf['ID'] = curdata['ID']
+            buf['Text'] = curdata['Text']
+            buf[categories] = [0]*len(categories)
+            buf[catdict[i][0]] = 1
+            average = int(required / (len(categories) - i))
+            if len(buf) >= average:
+                buf = buf.sample(average)
+            out = out.append(buf)
+            required = required - len(buf)
+            print(catdict[i][0] + ":" + str(len(buf)))
+    else:
+        for i in range(0, len(categories)):
+            curdata = inputdata[inputdata[colname] == categories[i]]
+            buf = pd.DataFrame(columns = out.columns)
+            buf['ID'] = curdata['ID']
+            buf['Text'] = curdata['Text']
+            buf[categories] = [0]*len(categories)
+            buf[categories[i]] = 1
+            out = out.append(buf)
+            
     return(out.reset_index(drop=True))
 
 def is_ascii(s):
