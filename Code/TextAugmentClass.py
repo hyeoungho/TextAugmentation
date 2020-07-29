@@ -32,7 +32,7 @@ class TextAugmentationClass:
         self.stop_words = stopwords.words('english')
         
     def caldatadist(self, inputdata):
-        self.catlist = inputdata['AreaPath'].str.get_dummies(sep=';').columns
+        self.catlist = list(inputdata['AreaPath'].str.get_dummies(sep=';').columns)
         self.datadist = []
         self.weightlist = []
         total = len(inputdata)

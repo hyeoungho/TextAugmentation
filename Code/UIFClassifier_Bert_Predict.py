@@ -583,6 +583,7 @@ if __name__ == "__main__":
             raise Exception("Usage: python UIFClassifier_Bert_Predict.py Debug inputDataPath modelCheckPointPath variablePath outputDir")
         inputDataPath = sys.argv[2]
         modelCheckPointPath = sys.argv[3]
+        checkPointBase, _ = os.path.split(modelCheckPointPath)
         variablePath = sys.argv[4]
         outputDir = sys.argv[5]
     
