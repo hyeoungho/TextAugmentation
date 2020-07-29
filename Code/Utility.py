@@ -7,7 +7,6 @@ Created on Fri Jul 24 15:40:19 2020
 
 import pandas as pd
 import numpy as np
-import numpy as np
 import matplotlib.pyplot as plt
 from itertools import cycle
 from sklearn import svm, datasets
@@ -17,6 +16,7 @@ from sklearn.preprocessing import label_binarize
 from sklearn.multiclass import OneVsRestClassifier
 from scipy import interp
 from sklearn.metrics import roc_auc_score
+import re, sys, traceback
 
 def convertDataFrame(inputDataPath, colname):
     '''
@@ -45,7 +45,37 @@ def convertDataFrame(inputDataPath, colname):
         out.loc[i, categories[0]:] = cat
     
     return(out)
-    
+
+def is_ascii(s):
+    return all(ord(c) < 128 for c in s)
+
+def sanitizedata(inputdata):
+    '''
+    Cleanup inputdata so that it can be used for training
+    #Assumption on the inputdata
+     It should contain 'Text' as its document column
+    '''
+    dropind = []
+    try:
+        for i in range(0, len(inputdata)) :
+            doc = inputdata.loc[i, 'Text']
+            if is_ascii(doc) != True:
+                dropind.append(i)
+            else:
+                #Do some cleaning
+                doc = re.sub('\[(.*?)\]', '', doc).strip()
+                if len(doc) < 10:
+                    #Too short
+                    dropind.append(i)
+                else:
+                    inputdata.loc[i, 'Text'] = doc
+        inputdata = inputdata.drop(dropind)
+        return(inputdata.reset_index(drop=True))
+    except BaseException as e:
+        print("*** print_tb:")
+        traceback.print_exc(file=sys.stdout)
+        raise Exception("Failed to sanitize data:" + str(e))
+
 def ROCAnalysis(y_true, y_pred):
     '''
     Run ROC analysis and draw plot    
