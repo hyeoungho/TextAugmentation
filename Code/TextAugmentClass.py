@@ -32,7 +32,7 @@ class TextAugmentationClass:
         self.stop_words = stopwords.words('english')
         
     def caldatadist(self, inputdata):
-        self.catlist = inputdata['AreaPath'].str.get_dummies(sep=';').columns
+        self.catlist = list(inputdata['AreaPath'].str.get_dummies(sep=';').columns)
         self.datadist = []
         self.weightlist = []
         total = len(inputdata)
@@ -135,9 +135,9 @@ class TextAugmentationClass:
                         else:
                             weight = _weight
         except BaseException as e:
-            #do nothing
+            print("Category not found in list of category weightings:" + str(e))
             weight = 1
-        return maxsynnum*weight
+        return maxsynnum*int(weight)
     
     def NERTagging(self, sent_tockenized, appnames) :
         #To deal with ';' delimited appnames
