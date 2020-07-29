@@ -37,14 +37,18 @@ def convertDataFrame(inputDataPath, colname):
     
     #Build output dataframe
     out = pd.DataFrame(columns = ['ID', 'Text'] + categories)
-    out['ID'] = inputdata['ID']
-    out['Text'] = inputdata['Text']
-    for i in range(0, len(inputdata)):
-        cat = [0]*len(categories)
-        cat[categories.index(inputdata.loc[i, colname])] = 1
-        out.loc[i, categories[0]:] = cat
     
-    return(out)
+    for i in range(0, len(categories)):
+        print(i)
+        curdata = inputdata[inputdata[colname] == categories[i]]
+        buf = pd.DataFrame(columns = out.columns)
+        buf['ID'] = curdata['ID']
+        buf['Text'] = curdata['Text']
+        buf[categories] = [0]*len(categories)
+        buf[categories[i]] = 1
+        out = out.append(buf)
+        
+    return(out.reset_index(drop=True))
 
 def is_ascii(s):
     return all(ord(c) < 128 for c in s)
