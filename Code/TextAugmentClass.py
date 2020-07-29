@@ -137,7 +137,7 @@ class TextAugmentationClass:
         except BaseException as e:
             #do nothing
             weight = 1
-        return maxsynnum*weight
+        return maxsynnum*int(weight)
     
     def NERTagging(self, sent_tockenized, appnames) :
         #To deal with ';' delimited appnames
