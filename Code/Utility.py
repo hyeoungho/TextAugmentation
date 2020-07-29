@@ -40,7 +40,7 @@ def convertDataFrame(inputDataPath, colname, totalnum=0):
     
     #Prepare for data balancing
     dobalance = False
-    if totalnum == 0:
+    if totalnum == 0 or totalnum < 0:
         print("Total number is not set. Skipping data balancing")
     elif totalnum >= len(inputdata):
         print("Total number is too big. Skipping data balancing")
