@@ -566,7 +566,7 @@ if __name__ == "__main__":
         # These hyperparameters are copied from this colab notebook (https://colab.sandbox.google.com/github/tensorflow/tpu/blob/master/tools/colab/bert_finetuning_with_cloud_tpus.ipynb)
         BATCH_SIZE = 16
         LEARNING_RATE = 2e-5
-        NUM_TRAIN_EPOCHS = 2.0
+        NUM_TRAIN_EPOCHS = 3.0
         # Warmup is a period of time where the learning rate 
         # is small and gradually increases--usually helps training.
         WARMUP_PROPORTION = 0.1
@@ -622,7 +622,7 @@ if __name__ == "__main__":
 
     #Build Model
     try:
-        OUTPUT_DIR = r".\Train\Working\checkpoints"
+        OUTPUT_DIR = modelCheckPointPath
         # Specify outpit directory and number of checkpoint steps to save
         run_config = tf.estimator.RunConfig(
             model_dir=OUTPUT_DIR,

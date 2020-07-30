@@ -82,7 +82,47 @@ def convertDataFrame(inputDataPath, colname, totalnum=0):
             
     return(out.reset_index(drop=True))
 
+def balancingData(inputdata, totalnum):
+    '''
+    Data balancing for inputdata with already in Bert Compatible form
+    '''
+    if totalnum == 0 or totalnum < 0:
+        print("Total number is not set. Skipping data balancing")
+        return
+    elif totalnum >= len(inputdata):
+        print("Total number is too big. Skipping data balancing")
+        return
+    #Build output dataframe
+    out = pd.DataFrame(columns = inputdata.columns)
+    categories = list(inputdata.columns[2:])
+    required = totalnum
+    catdict = {}
+    for i in range(len(categories)):
+        catdict[categories[i]] = len(inputdata[inputdata[categories[i]] == 1])
+        #Sort in ascending order
+        catdict = sorted(catdict.items(), key=lambda kv: kv[1])
+    for i in range(0, len(catdict)):
+        curdata = inputdata[inputdata[catdict[i][0]] == 1]
+        buf = pd.DataFrame(columns = out.columns)
+        buf['ID'] = curdata['ID']
+        buf['Text'] = curdata['Text']
+        buf[categories] = [0]*len(categories)
+        buf[catdict[i][0]] = 1
+        average = int(required / (len(categories) - i))
+        if len(buf) >= average:
+            buf = buf.sample(average)
+        out = out.append(buf)
+        required = required - len(buf)
+        print(catdict[i][0] + ":" + str(len(buf)))
+    
+    return(out.reset_index(drop=True))
+     
 def is_ascii(s):
+    '''
+    Simply checks if the input sentence (s) contains non-ascii characters. If so, returns False. Otherwise, returns True
+    #Arguments
+    # s: input sentence (string)
+    '''
     return all(ord(c) < 128 for c in s)
 
 def sanitizedata(inputdata):
@@ -165,7 +205,7 @@ def ROCAnalysis(y_true, y_pred):
                    ''.format(roc_auc["macro"]),
              color='navy', linestyle=':', linewidth=4)
     
-    colors = cycle(['aqua', 'darkorange', 'cornflowerblue'])
+    colors = cycle(['aqua', 'darkorange', 'cornflowerblue', 'green'])
     for i, color in zip(range(n_classes), colors):
         plt.plot(fpr[i], tpr[i], color=color, lw=lw,
                  label='ROC curve of class {0} (area = {1:0.2f})'
