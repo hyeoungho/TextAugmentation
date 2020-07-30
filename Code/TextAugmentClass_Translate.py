@@ -371,18 +371,22 @@ class TextAugmentationClass:
         return backtranslated
     def text_augmentation_translate_multiple(self, x):
         # TODO: weight by category
-        foreign_text = self.translateOneByOne(x, ['de','fr','es','af','ar', 'bn', 'bs', 'fi', 'gu', 'yue', 'ca', 'cs', 'da', 'nl', 'fj', 'he', 'el'])
+        foreign_text = self.translateOneByOne(x, ['ru','sm','sr-Cyrl','sr-Latn','sk', 'sl', 'sv', 'ty', 'mww', 'ta', 'te', 'th', 'to', 'tr', 'uk', 'ur', 'sw'])
         backtranslated = []
-        languages_insert= ['de','fr','es','af','ar', 'bn', 'bs', 'fi', 'gu', 'yue', 'ca', 'cs', 'da', 'nl', 'fj', 'he', 'el']
+        languages_insert= ['ru','sm','sr-Cyrl','sr-Latn','sk', 'sl', 'sv', 'ty', 'mww', 'ta', 'te', 'th', 'to', 'tr', 'uk', 'ur', 'sw']
         count =0
         for foreign in foreign_text:
-            newSentence = self.translate(foreign,[languages_insert[16-count]])[0]
-            anotherSentence = self.translate(newSentence,[languages_insert[random.randint(0, 16)]])[0]
-            finSentence = self.translate(anotherSentence, ['en'])[0]
-            count = count + 1
-            similarity = self.test_similarity(x, finSentence) 
-            if (similarity > self.thval and similarity < 1):
-                backtranslated.append(finSentence.encode('utf-8'))
+            try:
+                newSentence = self.translate(foreign,[languages_insert[16-count]])[0]
+                anotherSentence = self.translate(newSentence,[languages_insert[random.randint(0, 16)]])[0]
+                anotherSentence = self.translate(anotherSentence,[languages_insert[random.randint(0, 16)]])[0]
+                finSentence = self.translate(anotherSentence, ['en'])[0]
+                count = count + 1
+                similarity = self.test_similarity(x, finSentence) 
+                if (similarity > self.thval and similarity < 1):
+                    backtranslated.append(finSentence.encode('utf-8'))
+            except Exception as e:
+                print("No translation")
         return backtranslated
 
     #Recursive text augmentation function
@@ -449,7 +453,7 @@ if __name__ == "__main__":
         savetodisk = sys.argv[6]
     else:        
         inputpath = r'.\Data\UIFTestDataNoMovies.csv'
-        outputpath = r'.\Output\output2.csv'
+        outputpath = r'.\Output\output3.csv'
         thval = 0.8
         resume = False
         savetodisk = True
