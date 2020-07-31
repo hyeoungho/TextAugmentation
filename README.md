@@ -1,4 +1,4 @@
-# UIFtextaugmentation
+# TextAugmentation
 UIF Text Augmentation Project
 
 ## Prerequisite
