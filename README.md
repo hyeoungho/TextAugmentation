@@ -25,10 +25,13 @@ Below is the list of libraries that you need to install. Even though requirement
 
 ## How to use the code
 
-  .\Code\TextAgumentation.py : Main text augmentation template. The default method is recursive synonym replacement method.
-  .\Code\UIFClassifierBert_Train.py : Slightly modified version of BERT based classifier.
-  .\Code\UIFClassifierBert_Predict.py : Predictor using the trained model from the above code.
-  .\Code\Utility.py: Contains various utility function including convert function.
+  .\Code\TextAgumentation.py : Main text augmentation template. The default method is recursive synonym replacement method. 
+  
+  .\Code\UIFClassifierBert_Train.py : Slightly modified version of BERT based classifier. 
+  
+  .\Code\UIFClassifierBert_Predict.py : Predictor using the trained model from the above code.  
+  
+  .\Code\Utility.py: Contains various utility function including convert function.  
   
   So the flow should be like below:
   1. Prepare the training data with text augmentation: Feed your original text data (in the original column format) to generate augmented text data
