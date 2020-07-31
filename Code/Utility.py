@@ -17,6 +17,9 @@ from sklearn.multiclass import OneVsRestClassifier
 from scipy import interp
 from sklearn.metrics import roc_auc_score
 import re, sys, traceback
+import tensorflow as tf
+import tensorflow_hub as hub
+
 
 def convertDataFrame(inputDataPath, colname, totalnum=0):
     '''
@@ -221,3 +224,155 @@ def ROCAnalysis(y_true, y_pred):
     plt.show()
     
     return([roc_auc, fpr, tpr])
+
+def embed_useT(module = None):
+    if module == None:
+        module = "https://tfhub.dev/google/universal-sentence-encoder-large/3"
+    
+    with tf.Graph().as_default():
+        sentences = tf.placeholder(tf.string)
+        embed = hub.Module(module)
+        embeddings = embed(sentences)
+        session = tf.train.MonitoredSession()
+    return lambda x: session.run(embeddings, {sentences: x})
+
+
+class textAnalyzer:
+    def __init__(self, data, embed_fn):
+        '''
+        Assumption on data columns: 'Text'
+        '''
+        
+        data = data.reset_index(drop=True)
+        self.doc = data['Text']
+        self.embed_fn = embed_fn
+        
+        try:
+            print("***Vectorize using USE***")
+            self.vectorizeData()
+            print("***Converting to 2D vector***")
+            self.convert2D()       
+            
+        except BaseException as e:
+            print("Failed to vectorize:" + str(e))
+    
+    def get_features(self, texts):
+        if type(texts) is str:
+            texts = [texts]
+        return self.embed_fn(texts)
+
+    def vectorizeData(self):
+        if (len(self.doc) == 0):
+            print("Nothing to vectorize")
+            return
+        self.vectors = []
+        for i in range(0, len(self.doc)):
+            self.vectors.append(self.get_features(self.doc[i]))
+        self.vectors = np.array(self.vectors)
+        self.vectors = self.vectors[:,0,:]
+        self.mean = np.mean(self.vectors, axis=0)
+        self.std = np.std(self.vectors)
+    
+    def clustering(self, clusternum):
+        from sklearn.cluster import KMeans
+        self.kmeans = KMeans(n_clusters=clusternum, random_state=0).fit(self.vectors)
+        self.clusterlabels=self.kmeans.labels_
+    
+    def convert2D(self):
+        from sklearn.manifold import TSNE
+        RS = 23
+        self.vectors2d = TSNE(random_state=RS).fit_transform(self.vectors)
+    
+    def compareDataset(self, datasets, labels):
+        import seaborn as sns
+        '''
+        Draw scatter plot from different dataset in datasets
+        '''
+        datasetsnum = len(datasets)
+        palette = np.array(sns.color_palette("hls", datasetsnum))
+        
+        f = plt.figure(figsize=(32, 32))
+        ax = plt.subplot(aspect='equal')
+        for i in range(0, len(datasets)):
+            sc = ax.scatter(datasets[i][:,0], datasets[i][:,1], lw=0, s=120, 
+                            label = labels[i], c=palette[[i]*len(datasets[i])])
+        ax.legend()
+        ax.grid(True)
+        plt.show()
+        
+    
+    def plotselfcluster(self):
+        self.clustering(18)
+        self.scatter(self.vectors2d, self.clusterlabels)
+    
+    def scatter(self, x, colors):
+        import seaborn as sns
+        import matplotlib.patheffects as PathEffects
+        # We choose a color palette with seaborn.
+        palette = np.array(sns.color_palette("hls", 18))
+    
+        # We create a scatter plot.
+        f = plt.figure(figsize=(32, 32))
+        ax = plt.subplot(aspect='equal')
+        sc = ax.scatter(x[:,0], x[:,1], lw=0, s=120,
+                        c=palette[colors.astype(np.int)])
+        #plt.xlim(-25, 25)
+        #plt.ylim(-25, 25)
+        ax.axis('off')
+        ax.axis('tight')
+        
+        # We add the labels for each cluster.
+        txts = []
+        for i in range(18):
+            # Position of each label.
+            xtext, ytext = np.median(x[colors == i, :], axis=0)
+            txt = ax.text(xtext, ytext, str(i), fontsize=50)
+            txt.set_path_effects([
+                PathEffects.Stroke(linewidth=5, foreground="w"),
+                PathEffects.Normal()])
+            txts.append(txt)
+    
+        return f, ax, sc, txts
+
+def compareDataset(dataset, labels):
+    import seaborn as sns
+    '''
+    Draw scatter plot from different dataset in datasets
+    '''
+    datasetsnum = len(dataset)
+    palette = np.array(sns.color_palette("hls", datasetsnum))
+    
+    f = plt.figure(figsize=(32, 32))
+    ax = plt.subplot(aspect='equal')
+    for i in range(0, len(dataset)):
+        sc = ax.scatter(dataset[i][:,0], dataset[i][:,1], lw=0, s=120, label=labels[i],
+                        c=palette[[i]*len(dataset[i])])
+    ax.set_xlim(-200, 200)
+    ax.set_ylim(-200, 200)
+    ax.legend()
+    ax.grid(True)
+    plt.show()
+
+def cosine_similarity(v1, v2):
+    mag1 = np.linalg.norm(v1)
+    mag2 = np.linalg.norm(v2)
+    if (not mag1) or (not mag2):
+        return 0
+    return np.dot(v1, v2) / (mag1 * mag2)
+
+def makedatasets(inputdatapath, embed_fn):
+    '''
+    Making dataset that can be used for the scatter plot (compareDataset)
+    
+    '''
+    inputdata = pd.read_csv(inputdatapath, encoding = 'latin1')
+    categories = inputdata.columns[2:]
+    dataset = []
+    labels = []
+    for i in range(0, len(categories)):
+        od = inputdata[inputdata[categories[i]] == 1]
+        dc = textAnalyzer(od, embed_fn)
+        dataset.append(dc)
+        labels.append(categories[i])
+    return(dataset, labels)
+
