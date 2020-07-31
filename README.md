@@ -14,10 +14,14 @@ Below is the list of libraries that you need to install. Even though requirement
 ## Data
   
   Your .csv data should have below columns
+  ```
   ID, Text, Label
+  ```
   
   For the training, you can use convertDataFrame (included in Utility.py) to change the format to like below
+  ```
   ID, Text, Class0, Class1, ..., ClassN
+  ```
 
 ## Pretrained bert model
   
