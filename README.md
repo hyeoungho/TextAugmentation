@@ -10,7 +10,15 @@ Below is the list of libraries that you need to install. Even though requirement
   pandas
   numpy
   sklearn
+  nltk
+  spacy
+  bert-tensorflow
   ```
+  You'll also need to run
+  ```
+  python -m spacy download en_core_web_sm
+  ```
+  to download one of the models
 ## Data
   
   Your .csv data should have below columns
