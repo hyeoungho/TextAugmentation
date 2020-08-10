@@ -299,7 +299,6 @@ class textAnalyzer:
         ax.legend()
         ax.grid(True)
         plt.show()
-        
     
     def plotselfcluster(self):
         self.clustering(18)
@@ -376,3 +375,21 @@ def makedatasets(inputdatapath, embed_fn):
         labels.append(categories[i])
     return(dataset, labels)
 
+def showDistrtibution(vectors, mvector, drawhist=True):
+    dist = []
+    mag2 = np.linalg.norm(mvector)
+    if (not mag2):
+        return(np.array([0]*len(vectors)))
+    for i in range(len(vectors)):
+        mag1 = np.linalg.norm(vectors[i])
+        if (not mag1):
+            dist.append(0)
+        dist.append(np.dot(vectors[i], mvector) / (mag1 * mag2))
+    if drawhist == True:
+        _ = plt.hist(dist, bins = 'auto')
+    dist = np.array(dist)
+    mean = np.mean(dist)
+    print(mean)
+    return dist
+    
+    
