@@ -1,41 +1,52 @@
-# UIFtextaugmentation
+# UIFTextAugmentation
 UIF Text Augmentation Project
 
 ## Prerequisite
 
-I assume that the development environment is on Windows. Due to the limitation of CUDA support on WSL2, I struggled two days but abandoned the idea of using Linux environment for this development (though I prefer that).
-Under the assumption, you want to install below things first:
-  - Anaconda with Python 3.7.* (Please note that we need to have the same version of python)
-  - Spyder (it will come with Anaconda)
-  - Virtual environment (all the required packages are listed in requirement.txt)
-    On your anaconda shell (and of course on your cloned directory root):
-    
-    ```
-    >python -m venv .venv
-    
-    >.venv\Script\activate
-    [You should be able to see (.venv) starting from the next line on your shell]
-    
-    ```
-    
-    Then you play with pip to install all the packages that you need to install
-
- Below is the list of libraries that you need to install. Even though requirement.txt contains all the library list, you don't need to manually install all of them. 
+Below is the list of libraries that you need to install. Even though requirement.txt contains all the library list, you don't need to manually install all of them. 
   ```
   tensorflow(-gpu)==1.14
   tensorflow_hub
   pandas
   numpy
   sklearn
+  nltk
+  spacy
+  bert-tensorflow
   ```
+  You'll also need to run
+  ```
+  python -m spacy download en_core_web_sm
+  ```
+  to download one of the models
 ## Data
-
-  Our data can only be shared internally. Please DO NOT include it in your PR.
+  
+  Your .csv data should have below columns
+  ```
+  ID, Text, Label
+  ```
+  
+  For the training, you can use convertDataFrame (included in Utility.py) to change the format to like below
+  ```
+  ID, Text, Class0, Class1, ..., ClassN
+  ```
 
 ## Pretrained bert model
-
+  
   You will find where to download the trained model in the folder. 
 
-## Pull Request
-
-  Only add code changes on your PR.
+## How to use the code
+  ```
+  .\Code\TextAgumentation.py : Main text augmentation template. The default method is recursive synonym replacement method. 
+  .\Code\UIFClassifierBert_Train.py : Slightly modified version of BERT based classifier. 
+  .\Code\UIFClassifierBert_Predict.py : Predictor using the trained model from the above code.  
+  .\Code\Utility.py: Contains various utility function including convert function.  
+  ```
+  So the flow should be like below:
+  1. Prepare the training data with text augmentation: Feed your original text data (in the original column format) to generate augmented text data
+  2. Convert the data to BERT supported format (using convertDataFrame)
+  3. Train your model with the data
+  4. Predict with the model
+  5. Analyze the result with some functions in Utility (like ROCAnalysis)
+  
+  Have fun and leave comment if you have any questions
